@@ -28,68 +28,72 @@ Order by Product_category, Year, Month
 
 --PART 2: COHORT RETENTION CHART
 
-WITH online_retail_index as 
-(SELECT 
-id,
-revenue,
-FORMAT_DATE('%Y-%m', created_at) as Cohort_date,
-(FORMAT_DATE('%Y', created_at) - FORMAT_DATE('%Y', first_purchase_date))*12 + 
-(FORMAT_DATE('%M', created_at) - FORMAT_DATE('%M', first_purchase_date)) + 1 as index 
-FROM
-    (SELECT 
-    a.id,
-    SUM(sale_price) OVER (PARTITION BY product_id) AS revenue,
-    MIN(created_at) OVER (PARTITION BY product_id) AS first_purchase_date,
-    b.created_at
+WITH online_retail_index AS (
+  SELECT 
+    id,
+    revenue,
+    FORMAT_DATE('%Y-%m', created_at) AS cohort_date,
+    (EXTRACT(YEAR FROM created_at) - EXTRACT(YEAR FROM first_purchase_date)) * 12 + 
+    (EXTRACT(MONTH FROM created_at) - EXTRACT(MONTH FROM first_purchase_date)) + 1 AS index 
+  FROM (
+    SELECT 
+      a.id,
+      SUM(b.sale_price) OVER (PARTITION BY b.product_id) AS revenue,
+      MIN(b.created_at) OVER (PARTITION BY b.product_id) AS first_purchase_date,
+      b.created_at
     FROM bigquery-public-data.thelook_ecommerce.products AS a
     JOIN bigquery-public-data.thelook_ecommerce.order_items AS b
-    ON a.id = b.product_id)
+    ON a.id = b.product_id
+  )
+),
+aggregated_data AS (
+  SELECT 
+    cohort_date,
+    index,
+    COUNT(DISTINCT id) AS cnt,
+    SUM(revenue) AS total_revenue
+  FROM online_retail_index
+  GROUP BY cohort_date, index
+),
+customer_cohort AS (
+  SELECT 
+    cohort_date, 
+    SUM(CASE WHEN index = 1 THEN cnt ELSE 0 END) AS m1, 
+    SUM(CASE WHEN index = 2 THEN cnt ELSE 0 END) AS m2,
+    SUM(CASE WHEN index = 3 THEN cnt ELSE 0 END) AS m3,
+    SUM(CASE WHEN index = 4 THEN cnt ELSE 0 END) AS m4,
+    SUM(CASE WHEN index = 5 THEN cnt ELSE 0 END) AS m5,
+    SUM(CASE WHEN index = 6 THEN cnt ELSE 0 END) AS m6,
+    SUM(CASE WHEN index = 7 THEN cnt ELSE 0 END) AS m7,
+    SUM(CASE WHEN index = 8 THEN cnt ELSE 0 END) AS m8,
+    SUM(CASE WHEN index = 9 THEN cnt ELSE 0 END) AS m9,
+    SUM(CASE WHEN index = 10 THEN cnt ELSE 0 END) AS m10,
+    SUM(CASE WHEN index = 11 THEN cnt ELSE 0 END) AS m11,
+    SUM(CASE WHEN index = 12 THEN cnt ELSE 0 END) AS m12,
+    SUM(CASE WHEN index = 13 THEN cnt ELSE 0 END) AS m13
+  FROM aggregated_data
+  GROUP BY cohort_date
+  ORDER BY cohort_date
 )
-, XXX AS (SELECT 
-Cohort_date,
-index,
-COUNT(DISTINCT id) as cnt,
-SUM(revenue) as total_revenue
-FROM online_retail_index
-GROUP BY cohort_date, index)
 
-, customer_cohort as 
-(SELECT 
-cohort_date, 
-sum(CASE WHEN index=1 then cnt else 0 end) as m1, 
-sum(CASE WHEN index=2 then cnt else 0 end) as m2,
-sum(CASE WHEN index=3 then cnt else 0 end) as m3,
-sum(CASE WHEN index=4 then cnt else 0 end) as m4,
-sum(CASE WHEN index=5 then cnt else 0 end) as m5,
-sum(CASE WHEN index=6 then cnt else 0 end) as m6,
-sum(CASE WHEN index=7 then cnt else 0 end) as m7,
-sum(CASE WHEN index=8 then cnt else 0 end) as m8,
-sum(CASE WHEN index=9 then cnt else 0 end) as m9,
-sum(CASE WHEN index=10 then cnt else 0 end) as m10,
-sum(CASE WHEN index=11 then cnt else 0 end) as m11,
-sum(CASE WHEN index=12 then cnt else 0 end) as m12,
-sum(CASE WHEN index=13 then cnt else 0 end) as m13
-FROM xxx
-group by cohort_date
-order by cohort_date)
-
---retention cohort 
+-- Retention Cohort 
 SELECT 
-cohort_date,
-(100- round(100.00* m1/m1,2)) || '%' as m1,
-(100- round(100.00* m2/m1,2)) || '%' as m2,
-(100 -round(100.00* m2/m1,3)) || '%' as m3,
-(100- round(100.00* m2/m1,4)) || '%' as m4,
-(100- round(100.00* m2/m1,5)) || '%' as m5,
-(100- round(100.00* m2/m1,6)) || '%' as m6,
-(100- round(100.00* m2/m1,7)) || '%' as m7,
-(100- round(100.00* m2/m1,8)) || '%' as m8,
-(100- round(100.00* m2/m1,9)) || '%' as m9,
-(100- round(100.00* m2/m1,10)) || '%' as m10,
-(100- round(100.00* m2/m1,11)) || '%' as m11,
-(100- round(100.00* m2/m1,12)) || '%' as m12,
-(100- round(100.00* m2/m1,13)) || '%' as m13
-from customer_cohort
+  cohort_date,
+  (100 - ROUND(100.00 * m1 / m1, 2)) || '%' AS m1,
+  (100 - ROUND(100.00 * m2 / m1, 2)) || '%' AS m2,
+  (100 - ROUND(100.00 * m3 / m1, 2)) || '%' AS m3,
+  (100 - ROUND(100.00 * m4 / m1, 2)) || '%' AS m4,
+  (100 - ROUND(100.00 * m5 / m1, 2)) || '%' AS m5,
+  (100 - ROUND(100.00 * m6 / m1, 2)) || '%' AS m6,
+  (100 - ROUND(100.00 * m7 / m1, 2)) || '%' AS m7,
+  (100 - ROUND(100.00 * m8 / m1, 2)) || '%' AS m8,
+  (100 - ROUND(100.00 * m9 / m1, 2)) || '%' AS m9,
+  (100 - ROUND(100.00 * m10 / m1, 2)) || '%' AS m10,
+  (100 - ROUND(100.00 * m11 / m1, 2)) || '%' AS m11,
+  (100 - ROUND(100.00 * m12 / m1, 2)) || '%' AS m12,
+  (100 - ROUND(100.00 * m13 / m1, 2)) || '%' AS m13
+FROM customer_cohort;
+
 
 Bị lỗi: 
 /* No matching signature for operator - for argument types: STRING, STRING. Supported signatures: INT64 - INT64; NUMERIC - NUMERIC; BIGNUMERIC - BIGNUMERIC; 
